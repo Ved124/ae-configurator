@@ -81,6 +81,16 @@ export default function MachineTypePage() {
 
   const activeFamily = machineType || "mono";
 
+  const handleQuotationRefChange = (e) => {
+    const value = e.target.value;
+    setCustomer((prev) => ({
+      ...prev,
+      quotationRef: value,
+      ref: value, // keep both for exports
+    }));
+  };
+
+
   const handleFamilyClick = (key) => {
     if (key === "5layer") return;
     setMachineType(key);
@@ -188,6 +198,24 @@ export default function MachineTypePage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
+    {/* Quotation ref row */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* <div className="text-xs text-slate-400">
+          You can set the quotation reference here. It will appear on the summary and in exports.
+        </div> */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-300 whitespace-nowrap">
+            Quotation Ref No.
+          </label>
+          <input
+            type="text"
+            value={customer?.quotationRef || customer?.ref || ""}
+            onChange={handleQuotationRefChange}
+            className="h-8 w-48 rounded-lg border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder="e.g. AET/DOM/25/1123/001"
+          />
+        </div>
+      </div>
         {/* Family tabs */}
         <div className="flex flex-wrap gap-3 mb-6">
           {families.map((fam) => (

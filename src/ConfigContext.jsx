@@ -595,11 +595,55 @@ const filteredAddons = useMemo(() => {
     };
   }
 
+  // Generate a quotation reference number similar to your proposals
+  function generateQuotationRef() {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);      // e.g. "25"
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+
+    // You can tweak this format to exactly match your company style
+    // Example: "AET/DOM/25/1123/001"
+    return `AET/DOM/${yy}/${mm}${dd}/001`;
+  }
+
 
   function buildWordContext() {
-    const safeCustomer = customer || {};
+  const safeCustomer = customer || {};
 
-    const normalizedCustomer = {
+  // --- QUOTATION META (REF + DATE) ---
+  const today = new Date();
+  const quotationDate = today.toLocaleDateString("en-IN");
+  const quotationRef =
+    safeCustomer.ref || safeCustomer.quotationRef || generateQuotationRef();
+
+  // --- PRICE CALC ---
+  const basicTotal =
+    (selected || []).reduce(
+      (sum, item) => sum + (item.price || 0) * (item.qty || 1),
+      0
+    ) +
+    (selectedAddons || []).reduce(
+      (sum, item) => sum + (item.price || 0) * (item.qty || 1),
+      0
+    );
+
+  const markupPercent = typeof markup === "number" ? markup : 0;
+  const discountPercent = typeof discount === "number" ? discount : 0;
+
+  const priceWithMarkup = basicTotal + (basicTotal * markupPercent) / 100;
+  const finalTotal =
+    priceWithMarkup - (priceWithMarkup * discountPercent) / 100;
+  const finalRounded = Math.round(finalTotal || 0);
+
+  // --- MACHINE DETAILS (for front page + spec table) ---
+  const machineDetails = getMachineDetails(safeCustomer, machineType) || {};
+
+  return {
+    company: COMPANY,
+
+    // Customer block (for header & address)
+    customer: {
       company_name: safeCustomer.company || "-",
       contact_name: safeCustomer.name || "-",
       address: safeCustomer.address || "-",
@@ -609,147 +653,154 @@ const filteredAddons = useMemo(() => {
       phone: safeCustomer.phone || "-",
       email: safeCustomer.email || "-",
       gst: safeCustomer.gst || "-",
-      machine_family: safeCustomer.machineFamily || machineType || "",
-      machine_model_label: safeCustomer.machineModel || "",
-      machine_model_code: safeCustomer.machineModelCode || "",
-      machine_width: safeCustomer.machineWidth || "",
-      machine_thickness: safeCustomer.machineThickness || "",
-      output_capacity: safeCustomer.outputCapacity || "",
-      screw_sizes: safeCustomer.screwSizes || "",
-      custom_machine: !!safeCustomer.customMachine,
-    };
+    },
 
-    // ---- MACHINE DETAILS FROM MODEL ARRAYS (mono / ABA / 3-layer) ----
-    const machineDetails = getMachineDetailsForWord(
-      normalizedCustomer.machine_family,
-      safeCustomer
-    );
+    // Quotation meta – this maps directly to your proposal header
+    quotation: {
+      ref_no: quotationRef,
+      date: quotationDate,
+      subject:
+        safeCustomer.subject ||
+        "Proposal for Blown Film Extrusion Line",
+    },
 
-    // ---- PRICING ----
-    const basicTotal = (selected || []).reduce(
-      (sum, item) => sum + (item.price || 0) * (item.qty || 1),
-      0
-    );
-    const addonsTotal = (selectedAddons || []).reduce(
-      (sum, item) => sum + (item.price || 0) * (item.qty || 1),
-      0
-    );
+    // Convenience aliases (easy to bind in Word template if needed)
+    quotation_ref: quotationRef,
+    quotation_date: quotationDate,
 
-    const subtotal = basicTotal + addonsTotal;
-    const m = typeof markup === "number" ? markup : 0;
-    const d = typeof discount === "number" ? discount : 0;
+    // Short machine summary used on page 1
+    machine: {
+      model:
+        machineDetails.label ||
+        safeCustomer.machineModel ||
+        "BLOWN FILM LINE",
+      family: safeCustomer.machineFamily || machineType || "",
+      width_mm: machineDetails.widthMm || safeCustomer.machineWidth || "",
+      screw_sizes: machineDetails.extruder || safeCustomer.screwSizes || "",
+      output_capacity_kgph:
+        machineDetails.outputKgHr || safeCustomer.outputCapacity || "",
+    },
 
-    const priceWithMarkup = subtotal + (subtotal * m) / 100;
-    const finalTotal = priceWithMarkup - (priceWithMarkup * d) / 100;
-    const finalRounded = Math.round(finalTotal || 0);
+    // Full technical details from model arrays
+    machine_details: machineDetails,
 
-    const basic_price_text = `INR ${Math.round(priceWithMarkup || 0).toLocaleString(
-      "en-IN"
-    )}/-`;
-    const final_price_text = `INR ${finalRounded.toLocaleString("en-IN")}/-`;
-    const final_price_in_words =
-      finalRounded > 0
-        ? `INR ${numberToWords(finalRounded)} only`
-        : "INR Zero";
+    // single big machine image on front page
+    machine_image: machineDetails.machineImagePath || null,
 
-    // ---- COMPONENTS (SCOPE OF SUPPLY) ----
-    const componentsForWord = (selected || []).map((item, idx) => ({
+    // Scope of supply – base components
+    components: (selected || []).map((item, idx) => ({
       item_no: idx + 1,
       name: item.name,
       category: item.category || "",
       tech_desc: item.techDesc || item.desc || "",
       image: item.image || null,
       qty: item.qty || 1,
-    }));
+      unit_price: item.price || 0,
+    })),
 
-    // ---- OPTIONAL ITEMS ----
-    const optionalItemsForWord = (selectedAddons || []).map((a, idx) => ({
+    // Optional equipment
+    optional_items: (selectedAddons || []).map((a, idx) => ({
       item_no: idx + 1,
       name: a.name,
+      category: a.category || "",
+      tech_desc: a.techDesc || a.desc || "",
+      image: a.image || null,
       qty: a.qty || 1,
-      price: a.price || 0,
-      price_text: `INR ${Math.round(a.price || 0).toLocaleString("en-IN")}/-`,
-    }));
+      unit_price: a.price || 0,
+    })),
 
-    // ---- INDICATIVE PERFORMANCE ----
-    const indicativePerformance = {
-      product: safeCustomer.productToMake || "",
-      max_pumping_capacity: safeCustomer.maxPump || "",
+    // Pricing block – directly matches what you show in Summary
+    pricing: {
+      basic_total_number: basicTotal,
+      markup_percent: markupPercent,
+      discount_percent: discountPercent,
+      basic_price_text: `INR ${Math.round(
+        priceWithMarkup || 0
+      ).toLocaleString("en-IN")}/-`,
+      final_price_number: finalRounded,
+      final_price_text: `INR ${finalRounded.toLocaleString("en-IN")}/-`,
+      final_price_in_words: finalRounded
+        ? `INR ${numberToWords(finalRounded)} only`
+        : "INR Zero",
+    },
+
+    // Performance (you can tweak more later)
+    indicative_performance: {
+      product:
+        safeCustomer.productToMake ||
+        "High Quality Monolayer / ABA / Three Layer Film",
+      max_pumping_capacity:
+        machineDetails.outputKgHr || safeCustomer.maxPump || "",
       max_output: safeCustomer.maxOutput || "",
-    };
+    },
 
-    // ---- QUOTATION META ----
-    const quotationMeta = {
-      ref_no: safeCustomer.ref || "AEP/DOM/XXXX/001",
-      date: new Date().toLocaleDateString("en-IN"),
-      validity_text: "Prices are valid for 30 days from the date of quotation.",
-    };
+    prepared_by: "Urveesh Jepaliya",
+  };
+}
 
-    return {
-      company: COMPANY,
-
-      customer: normalizedCustomer,
-
-      quotation: quotationMeta,
-
-      machine: {
-        family: normalizedCustomer.machine_family,
-        model_label: normalizedCustomer.machine_model_label,
-        model_code: normalizedCustomer.machine_model_code,
-        width_mm: normalizedCustomer.machine_width,
-        thickness_range: normalizedCustomer.machine_thickness,
-        output_capacity_kgph: normalizedCustomer.output_capacity,
-        screw_sizes: normalizedCustomer.screw_sizes,
-        custom_machine: normalizedCustomer.custom_machine,
-        // full model object + specs table from CSV/TS
-        details_raw: machineDetails ? machineDetails.raw : null,
-        technical_specs: machineDetails ? machineDetails.specs_table : [],
-      },
-
-      components: componentsForWord,
-
-      optional_items: optionalItemsForWord,
-
-      pricing: {
-        basic_total_number: basicTotal,
-        addons_total_number: addonsTotal,
-        subtotal_number: subtotal,
-        markup_percent: m,
-        discount_percent: d,
-        basic_price_text, // Basic Price (Ex-Works)
-        final_price_number: finalRounded,
-        final_price_text, // e.g. "INR 12,34,000/-"
-        final_price_in_words, // "INR Twelve Lakh..."
-      },
-
-      indicative_performance: indicativePerformance,
-
-      prepared_by: "Urveesh Jepaliya",
-
-      // nice to have in template
-      date: quotationMeta.date,
-    };
-  }
 
 
   // ---------------- EXPORT: JSON ----------------
 
-  function exportJsonOnly() {
-    const payload = buildWordContext();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const safeName = (customer.name || "Customer").replace(/\s+/g, "_");
-    const fileName = `${dateStr}_${safeName}_Quotation.json`;
+  // ---------------- EXPORT: JSON (template-style, for re-import) ----------------
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+  function exportJsonOnly() {
+    try {
+      // This builds the full structured object:
+      // {
+      //   company,
+      //   customer,
+      //   quotation,
+      //   machine,
+      //   components,
+      //   optional_items,
+      //   pricing,
+      //   indicative_performance,
+      //   prepared_by,
+      //   date
+      // }
+      const ctx = buildWordContext();
+
+      // Optional: add a small schema marker so we know this is "new style"
+      const payload = {
+        schema: "adroit_quotation_v1",
+        generated_at: new Date().toISOString(),
+        ...ctx,
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+
+      // Nice filename: YYYYMMDD_Ref_Customer_Quotation.json
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+      // we stored quotation ref in customer.ref / quotation.ref_no earlier
+      const ref =
+        (ctx.customer && (ctx.customer.ref || ctx.customer.quotationRef)) ||
+        (ctx.quotation && ctx.quotation.ref_no) ||
+        "";
+
+      const refSafe = ref ? String(ref).replace(/[^\w\-]/g, "_") : "NOREF";
+      const nameSafe = (ctx.customer.contact_name || "Customer")
+        .toString()
+        .replace(/\s+/g, "_");
+
+      const fileName = `${dateStr}_${refSafe}_${nameSafe}_Quotation.json`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("JSON export failed:", e);
+      alert("Could not export JSON configuration.");
+    }
   }
+
+
 
   // ---------------- EXPORT: WORD (simple docx) ----------------
 
@@ -807,73 +858,84 @@ const filteredAddons = useMemo(() => {
   // ---------------- EXPORT: PDF (simple jsPDF) ----------------
 
   async function exportPdfOnly() {
-    try {
-      const { jsPDF } = await import("jspdf");
-      const ctx = buildWordContext();
-      const pdf = new jsPDF();
+  try {
+    const { jsPDF } = await import("jspdf");
+    const ctx = buildWordContext();
 
-      let y = 15;
-      pdf.setFontSize(16);
-      pdf.text("Quotation", 14, y);
-      y += 10;
+    const pdf = new jsPDF();
+    let y = 15;
 
-      pdf.setFontSize(11);
-      pdf.text(`Customer: ${ctx.customer.name || "-"}`, 14, y);
+    pdf.setFontSize(16);
+    pdf.text("Quotation", 14, y);
+    y += 10;
+
+    pdf.setFontSize(11);
+
+    // customer block
+    pdf.text(`Customer: ${ctx.customer.name || "-"}`, 14, y);
+    y += 6;
+    pdf.text(`Company: ${ctx.customer.company || "-"}`, 14, y);
+    y += 6;
+    pdf.text(
+      `Location: ${ctx.customer.city || ""} ${ctx.customer.state || ""}`,
+      14,
+      y
+    );
+    y += 10;
+
+    // machine block
+    pdf.text(
+      `Machine: ${ctx.machine.model_label || "-"}`,
+      14,
+      y
+    );
+    y += 6;
+    pdf.text(
+      `Width: ${ctx.machine.width_mm || "-"}   Thickness: ${
+        ctx.customer.machine_thickness || "-"
+      }`,
+      14,
+      y
+    );
+    y += 6;
+    pdf.text(
+      `Output: ${ctx.customer.output_capacity || "-"}`,
+      14,
+      y
+    );
+    y += 10;
+
+    // pricing block (uses same fields as template)
+    pdf.text(
+      `Basic Price (Ex-Works): ${ctx.pricing.basic_price_text || "-"}`,
+      14,
+      y
+    );
+    y += 6;
+    pdf.text(
+      `Final Price: ${ctx.pricing.final_price_text || "-"}`,
+      14,
+      y
+    );
+    y += 6;
+    if (ctx.pricing.final_price_in_words) {
+      pdf.text(ctx.pricing.final_price_in_words, 14, y);
       y += 6;
-      pdf.text(`Company: ${ctx.customer.company || "-"}`, 14, y);
-      y += 6;
-      pdf.text(
-        `Location: ${ctx.customer.city || ""} ${ctx.customer.state || ""}`,
-        14,
-        y
-      );
-      y += 10;
-
-      pdf.text(
-        `Machine: ${ctx.customer.machineModel || ctx.machineType || "-"}`,
-        14,
-        y
-      );
-      y += 6;
-      pdf.text(
-        `Width: ${ctx.customer.machineWidth || "-"}   Thickness: ${
-          ctx.customer.machineThickness || "-"
-        }`,
-        14,
-        y
-      );
-      y += 6;
-      pdf.text(
-        `Output: ${ctx.customer.outputCapacity || "-"}`,
-        14,
-        y
-      );
-      y += 10;
-
-      pdf.text(
-        `Final price after discount: ₹${ctx.finalPrice.toLocaleString(
-          "en-IN"
-        )}`,
-        14,
-        y
-      );
-      y += 6;
-      if (ctx.finalPriceWords) {
-        pdf.text(ctx.finalPriceWords, 14, y);
-      }
-
-      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-      const safeName = (customer.name || "Customer").replace(/\s+/g, "_");
-      const fileName = `${dateStr}_${safeName}_Quotation.pdf`;
-
-      pdf.save(fileName);
-    } catch (e) {
-      console.error("PDF export failed:", e);
-      alert(
-        "Could not generate PDF. Make sure 'jspdf' is installed: npm install jspdf"
-      );
     }
+
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const safeName = (ctx.customer.name || "Customer").replace(/\s+/g, "_");
+    const fileName = `${dateStr}_${safeName}_Quotation.pdf`;
+
+    pdf.save(fileName);
+  } catch (e) {
+    console.error("PDF export failed:", e);
+    alert(
+      "Could not generate PDF. Make sure 'jspdf' is installed: npm install jspdf"
+    );
   }
+}
+
 
   // ---------------- IMPORT JSON ----------------
 
@@ -881,32 +943,279 @@ const filteredAddons = useMemo(() => {
     try {
       const file = event.target.files[0];
       if (!file) return;
+
       const text = await file.text();
       const data = JSON.parse(text);
 
-      if (data.customer) setCustomer(data.customer);
-      if (typeof data.machineType === "string")
-        setMachineTypeAndReset(data.machineType);
-      if (Array.isArray(data.selected)) setSelected(data.selected);
-      if (Array.isArray(data.selectedAddons))
-        setSelectedAddons(data.selectedAddons);
-      if (typeof data.discount === "number") setDiscount(data.discount);
-      if (typeof data.markup === "number") setMarkup(data.markup);
+      // Helper: map "family" string to our internal machineType key
+      const toMachineTypeKey = (family) => {
+        if (!family) return null;
+        const f = String(family).toLowerCase();
+        if (f.includes("unoflex") || f.includes("mono")) return "mono";
+        if (f.includes("duoflex") || f.includes("aba") || f.includes("a/b")) return "aba";
+        if (f.includes("innoflex 3")) return "3layer";
+        if (f.includes("innoflex 5")) return "5layer";
+        if (f === "mono" || f === "aba" || f === "3layer" || f === "5layer") return f;
+        return null;
+      };
 
+      // Helper: resolve a base component from our master COMPONENTS_DATA
+      const resolveBaseComponent = (category, nameOrId) => {
+        if (!nameOrId) return null;
+        const target = String(nameOrId).trim();
+        // Try within declared category first
+        if (COMPONENTS_DATA[category]) {
+          const list = COMPONENTS_DATA[category];
+          const byId = list.find((c) => c.id === target);
+          if (byId) return { base: byId, category };
+          const byName = list.find((c) => c.name === target);
+          if (byName) return { base: byName, category };
+        }
+        // Fallback: search all categories by name
+        for (const [cat, list] of Object.entries(COMPONENTS_DATA)) {
+          const byName = list.find((c) => c.name === target);
+          if (byName) return { base: byName, category: cat };
+        }
+        return null;
+      };
+
+      // Helper: resolve base add-on from ADDONS_DATA
+      const resolveBaseAddon = (category, nameOrId) => {
+        if (!nameOrId) return null;
+        const target = String(nameOrId).trim();
+        if (ADDONS_DATA[category]) {
+          const list = ADDONS_DATA[category];
+          const byId = list.find((a) => a.id === target);
+          if (byId) return { base: byId, category };
+          const byName = list.find((a) => a.name === target);
+          if (byName) return { base: byName, category };
+        }
+        for (const [cat, list] of Object.entries(ADDONS_DATA)) {
+          const byName = list.find((a) => a.name === target);
+          if (byName) return { base: byName, category: cat };
+        }
+        return null;
+      };
+
+      // ------------------------------------------------------------------
+      // NEW FORMAT (from buildWordContext / template JSON)
+      // ------------------------------------------------------------------
+      if (data && data.customer && data.machine && data.pricing) {
+        const c = data.customer || {};
+        const m = data.machine || {};
+        const perf = data.indicative_performance || {};
+        const q = data.quotation || {};
+
+        // 1) Customer object in our internal shape
+        const rebuiltCustomer = {
+          company: c.company_name || c.company || "",
+          name: c.contact_name || c.name || "",
+          address: c.address || "",
+          city: c.city || "",
+          state: c.state || "",
+          country: c.country || "",
+          phone: c.phone || "",
+          email: c.email || "",
+          gst: c.gst || "",
+
+          machineFamily: m.family || c.machine_family || "",
+          machineModel: m.model_label || c.machine_model_label || "",
+          machineModelCode: m.model_code || c.machine_model_code || "",
+          machineWidth: m.width_mm || c.machine_width || "",
+          machineThickness: m.thickness_range || c.machine_thickness || "",
+          outputCapacity: m.output_capacity_kgph || c.output_capacity || "",
+          screwSizes: m.screw_sizes || c.screw_sizes || "",
+          customMachine:
+            typeof m.custom_machine === "boolean"
+              ? m.custom_machine
+              : !!c.custom_machine,
+
+          productToMake: perf.product || "",
+          maxPump: perf.max_pumping_capacity || "",
+          maxOutput: perf.max_output || "",
+
+          quotationRef: q.ref_no || c.quotationRef || c.ref || "",
+          ref: q.ref_no || c.quotationRef || c.ref || "",
+        };
+
+        // 2) Machine type (mono / aba / 3layer / 5layer)
+        const mType =
+          toMachineTypeKey(m.family) ||
+          toMachineTypeKey(c.machine_family) ||
+          null;
+
+        if (mType) {
+          // use low-level setter so we DON'T auto-clear selections here
+          setMachineTypeState(mType);
+        }
+
+        // 3) Rebuild selected base components
+        const newSelected = [];
+        if (Array.isArray(data.components)) {
+          data.components.forEach((row) => {
+            const cat = row.category || "Scope of Supply";
+            const qty = row.qty || row.quantity || 1;
+            const name = row.name;
+
+            const resolved =
+              resolveBaseComponent(cat, row.id) ||
+              resolveBaseComponent(cat, name);
+
+            if (resolved) {
+              const { base, category } = resolved;
+              newSelected.push({
+                ...base,
+                category,
+                qty,
+              });
+            } else {
+              // fallback: keep whatever is in JSON
+              newSelected.push({
+                id: row.id || `${cat}_${name}`,
+                name,
+                category: cat,
+                qty,
+                price: row.price ?? 0,
+                shortDesc: row.tech_desc || "",
+                desc: row.tech_desc || "",
+                image: row.image || null,
+              });
+            }
+          });
+        }
+
+        // 4) Rebuild selected add-ons
+        const newAddons = [];
+        if (Array.isArray(data.optional_items)) {
+          data.optional_items.forEach((row) => {
+            const cat = row.category || "Optional Items";
+            const qty = row.qty || row.quantity || 1;
+            const name = row.name;
+
+            const resolved =
+              resolveBaseAddon(cat, row.id) ||
+              resolveBaseAddon(cat, name);
+
+            if (resolved) {
+              const { base, category } = resolved;
+              newAddons.push({
+                ...base,
+                category,
+                qty,
+              });
+            } else {
+              newAddons.push({
+                id: row.id || `${cat}_${name}`,
+                name,
+                category: cat,
+                qty,
+                price: row.price ?? row.price_number ?? 0,
+                shortDesc: row.desc || "",
+                desc: row.desc || "",
+              });
+            }
+          });
+        }
+
+        // 5) Pricing – restore markup & discount
+        if (data.pricing) {
+          const p = data.pricing;
+          if (typeof p.markup_percent === "number") {
+            setMarkup(p.markup_percent);
+          } else if (typeof p.markup === "number") {
+            setMarkup(p.markup);
+          }
+          if (typeof p.discount_percent === "number") {
+            setDiscount(p.discount_percent);
+          } else if (typeof p.discount === "number") {
+            setDiscount(p.discount);
+          }
+        }
+
+        // 6) Apply state (this overwrites existing config)
+        setCustomer(rebuiltCustomer);
+        setSelected(newSelected);
+        setSelectedAddons(newAddons);
+
+        // These are model-related UI helpers – best guess from machine section
+        const label = rebuiltCustomer.machineModel || m.model_label || "";
+        if (label) {
+          setSelectedMachineModelLabel(label);
+          setCustomMode(!label); // if we have a label, assume not custom
+        }
+
+        toast.push({
+          title: "Configuration imported",
+          description: file.name,
+          variant: "success",
+        });
+
+        return;
+      }
+
+      // ------------------------------------------------------------------
+      // OLD FORMAT (flat: customer, machineType, selected, selectedAddons…)
+      // ------------------------------------------------------------------
+      if (
+        data.customer ||
+        typeof data.machineType === "string" ||
+        Array.isArray(data.selected) ||
+        Array.isArray(data.selectedAddons)
+      ) {
+        if (data.customer) setCustomer(data.customer);
+
+        if (typeof data.machineType === "string") {
+          // use our reset helper here (keeps old behavior for old JSON)
+          setMachineTypeAndReset(data.machineType);
+        }
+
+        if (Array.isArray(data.selected)) {
+          setSelected(data.selected);
+        } else {
+          setSelected([]);
+        }
+
+        if (Array.isArray(data.selectedAddons)) {
+          setSelectedAddons(data.selectedAddons);
+        } else {
+          setSelectedAddons([]);
+        }
+
+        if (typeof data.discount === "number") setDiscount(data.discount);
+        if (typeof data.markup === "number") setMarkup(data.markup);
+
+        toast.push({
+          title: "Old JSON imported",
+          description: file.name,
+          variant: "success",
+        });
+
+        return;
+      }
+
+      // ------------------------------------------------------------------
+      // Unknown format
+      // ------------------------------------------------------------------
       toast.push({
-        title: "Imported",
-        description: file.name,
-        variant: "success",
+        title: "Import failed",
+        description: "JSON structure not recognised",
+        variant: "error",
       });
     } catch (e) {
       console.error("Import JSON failed:", e);
       toast.push({
         title: "Import failed",
-        description: "Failed to import JSON",
+        description: "Could not parse JSON file",
         variant: "error",
       });
+    } finally {
+      // reset input value so same file can be selected again if needed
+      if (event?.target) {
+        event.target.value = "";
+      }
     }
   }
+
 
   // ---------------- RESET ----------------
 

@@ -105,6 +105,7 @@ export default function SummaryPage() {
   const router = useRouter();
   const {
     customer,
+    setCustomer,
     selected,
     selectedAddons,
     discount,
@@ -122,6 +123,16 @@ export default function SummaryPage() {
   } = useContext(ConfigContext);
   const [showMarkupField, setShowMarkupField] = useState(false);
   const [showDiscountField, setShowDiscountField] = useState(false);
+
+
+  const handleQuotationRefChange = (e) => {
+    const value = e.target.value;
+    setCustomer((prev) => ({
+      ...prev,
+      quotationRef: value,
+      ref: value,
+    }));
+  };
 
 
   const {
@@ -259,6 +270,19 @@ export default function SummaryPage() {
             <h2 className="text-sm font-semibold text-slate-200">
               Scope of Supply
             </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-400">Quotation Ref No.:</span>
+                <input
+                  type="text"
+                  value={customer?.quotationRef || customer?.ref || ""}
+                  onChange={handleQuotationRefChange}
+                  className="h-7 rounded-lg border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="e.g. AET/DOM/25/1123/001"
+                />
+                <span className="ml-3 text-slate-500">
+                  Date: {new Date().toLocaleDateString("en-IN")}
+                </span>
+              </div>
             <p className="text-xs text-slate-400">
               {machineHeading || "Configured machine"}
             </p>
