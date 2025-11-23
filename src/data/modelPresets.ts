@@ -99,7 +99,7 @@ export const MODEL_PRESETS: Record<string, PresetConfig> = {
     machineType: "3layer",
     components: [
       { category: "Extruder", id: "ext-50-coex-long", qty: 2 },
-      { category: "Extruder", id: "ext-65-coex-long", qty: 1 } ,
+      { category: "Extruder", id: "ext-65-coex-long", qty: 1 },
       { category: "Feedblock / Co-extrusion", id: "fb_3l", qty: 1 },
       { category: "Die Head", id: "die-3layer-325", qty: 1 },
       { category: "Bubble Cage", id: "bc-6seg-motorized", qty: 1 },
@@ -119,7 +119,7 @@ export const MODEL_PRESETS: Record<string, PresetConfig> = {
     machineType: "3layer",
     components: [
       { category: "Extruder", id: "ext-75-coex-long", qty: 1 },
-      { category: "Extruder", id: "ext-65-coex-long", qty: 2 } ,
+      { category: "Extruder", id: "ext-65-coex-long", qty: 2 },
       { category: "Feedblock / Co-extrusion", id: "fb_3l", qty: 1 },
       { category: "Die Head", id: "die-3layer-525", qty: 1 },
       { category: "Bubble Cage", id: "bc-9seg-motorized", qty: 1 },
@@ -139,7 +139,7 @@ export const MODEL_PRESETS: Record<string, PresetConfig> = {
     machineType: "3layer",
     components: [
       { category: "Extruder", id: "ext-75-coex-long", qty: 2 },
-      { category: "Extruder", id: "ext-90-coex-long", qty: 1 } ,
+      { category: "Extruder", id: "ext-90-coex-long", qty: 1 },
       { category: "Feedblock / Co-extrusion", id: "fb_3l", qty: 1 },
       { category: "Die Head", id: "die-3layer-575", qty: 1 },
       { category: "Bubble Cage", id: "bc-9seg-motorized", qty: 1 },
@@ -160,7 +160,7 @@ export const MODEL_PRESETS: Record<string, PresetConfig> = {
     machineType: "aba",
     components: [
       { category: "Extruder", id: "ext-35-aba-long", qty: 1 },
-      { category: "Extruder", id: "ext-45-coex-long", qty: 1 } ,
+      { category: "Extruder", id: "ext-45-coex-long", qty: 1 },
       { category: "Feedblock / Co-extrusion", id: "fb_2l", qty: 1 },
       { category: "Die Head", id: "die-aba-70-150", qty: 1 },
       // { category: "Bubble Cage", id: "bc-9seg-motorized", qty: 1 },
@@ -180,7 +180,7 @@ export const MODEL_PRESETS: Record<string, PresetConfig> = {
     machineType: "aba",
     components: [
       { category: "Extruder", id: "ext-55-aba-long", qty: 1 },
-      { category: "Extruder", id: "ext-45-coex-long", qty: 1 } ,
+      { category: "Extruder", id: "ext-45-coex-long", qty: 1 },
       { category: "Feedblock / Co-extrusion", id: "fb_2l", qty: 1 },
       { category: "Die Head", id: "die-aba-125-250", qty: 1 },
       // { category: "Bubble Cage", id: "bc-9seg-motorized", qty: 1 },
@@ -219,7 +219,7 @@ export const MODEL_PRESETS: Record<string, PresetConfig> = {
     machineType: "aba",
     components: [
       { category: "Extruder", id: "ext-55-aba-long", qty: 1 },
-      { category: "Extruder", id: "ext-65-coex-long", qty: 1 }, 
+      { category: "Extruder", id: "ext-65-coex-long", qty: 1 },
       { category: "Feedblock / Co-extrusion", id: "fb_2l", qty: 1 },
       { category: "Die Head", id: "die-aba-225-375", qty: 1 },
       // { category: "Bubble Cage", id: "bc-9seg-motorized", qty: 1 },
@@ -369,5 +369,5 @@ export const MODEL_PRESETS: Record<string, PresetConfig> = {
       },
     ],
   },
-  
+
 };
