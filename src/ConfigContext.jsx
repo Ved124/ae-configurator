@@ -738,10 +738,6 @@ const filteredAddons = useMemo(() => {
   };
 }
 
-
-
-  // ---------------- EXPORT: JSON ----------------
-
   // ---------------- EXPORT: JSON (template-style, for re-import) ----------------
 
   function exportJsonOnly() {
@@ -800,57 +796,57 @@ const filteredAddons = useMemo(() => {
     }
   }
 
-
-
-  // ---------------- EXPORT: WORD (simple docx) ----------------
-
-  // ConfigContext.jsx
-
+  // ---------------- EXPORT: WORD (template-based) ----------------
   async function exportWordOnly() {
     try {
-      // 1) Build all the data from the configurator
+      // 1) Build full context from configurator
       const ctx = buildWordContext();
 
-      // 2) Load template engine + template file
-      const { default: createReport } = await import("docx-templates");
-
-      const res = await fetch("public/templates/ae_quotation_template.docx");
+      // 2) Load the .docx template from /public
+      const templateUrl = "/templates/ae_quotation_template.docx";
+      const res = await fetch(templateUrl);
       if (!res.ok) {
-        throw new Error("Failed to load Word template");
+        throw new Error("Could not load Word template");
       }
       const arrayBuffer = await res.arrayBuffer();
-      const templateUint8 = new Uint8Array(arrayBuffer);
 
-      // 3) Merge data into the template
-      const reportBuffer = await createReport({
-        template: templateUint8,
-        data: ctx, // everything we referenced in the template
-        // cmdDelimiter: ["{", "}"], // default already uses {} so you can omit
+      // 3) Generate docx using docx-templates
+      const { default: createReport } = await import("docx-templates");
+
+      const buffer = await createReport({
+        template: arrayBuffer,
+        data: ctx, // contains {company, customer, quotation, machine, components, optional_items, pricing, ...}
       });
 
-      // 4) Trigger download in browser
-      const blob = new Blob([reportBuffer], {
+      // 4) Download as file
+      const blob = new Blob([buffer], {
         type:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
 
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-      const safeName = (ctx.customer.contact_name || "Customer")
-        .replace(/\s+/g, "_")
-        .slice(0, 40);
-      const fileName = `${dateStr}_${safeName}_Quotation.docx`;
+      const ref =
+        (ctx.customer && (ctx.customer.ref || ctx.customer.quotationRef)) ||
+        (ctx.quotation && ctx.quotation.ref_no) ||
+        "";
+      const refSafe = ref ? String(ref).replace(/[^\w\-]/g, "_") : "NOREF";
+      const nameSafe = (ctx.customer.contact_name || "Customer")
+        .toString()
+        .replace(/\s+/g, "_");
+
+      const fileName = `${dateStr}_${refSafe}_${nameSafe}_Quotation.docx`;
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
-      document.body.appendChild(a);
       a.click();
-      a.remove();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Word export failed:", err);
-      alert("Could not generate Word file. Check console for details.");
+    } catch (e) {
+      console.error("Word export (template) failed:", e);
+      alert(
+        "Could not generate Word file from template. Check console/logs and that /public/templates/ae_quotation_template.docx exists."
+      );
     }
   }
 
@@ -935,7 +931,6 @@ const filteredAddons = useMemo(() => {
     );
   }
 }
-
 
   // ---------------- IMPORT JSON ----------------
 
@@ -1215,7 +1210,6 @@ const filteredAddons = useMemo(() => {
       }
     }
   }
-
 
   // ---------------- RESET ----------------
 
