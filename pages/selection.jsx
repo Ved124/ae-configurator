@@ -95,8 +95,7 @@ export default function SelectionPage() {
         <div className="flex flex-col md:flex-row justify-between gap-3 mb-5">
           <div className="text-sm text-slate-300">
             <div className="font-semibold">
-              {customer?.company || customer?.name || "Customer"} {" "}
-              {customer?.city || ""}
+              {customer?.company || customer?.name || "Customer"} {"-"} {customer?.city || ""}
             </div>
             <div className="text-xs text-slate-400">
               {customer?.machineModel ||
