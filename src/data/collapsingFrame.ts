@@ -42,7 +42,7 @@ export const COLLAPSING_FRAME_COMPONENTS: CollapsingFrameComponent[] = [
     name: "Collapsing Frame – PBT Rollers (Wide Web)",
     style: "PBT",
     machineTypes: ["aba", "3layer"],
-    usedInModels: ["DUOFLEX-1000", "DUOFLEX-1250", "AE-1125", "AE-1350A", "AE-1350B"],
+    usedInModels: ["DUOFLEX-1000", "DUOFLEX-1250", "DUOFLEX-1750", "AE-1125", "AE-1350A", "AE-1350B"],
     image: "/images/Acessories/Gusset Board Assembly.jpeg",
     cardDesc: "Wide web collapsing frame with PBT rollers.",
     price: 0,
